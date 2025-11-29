@@ -25,8 +25,8 @@ jobs:
           java-version: '25'   # 根据需要改为 8/11/17 等
 
       - name: Build with Maven
-        # 若想跳过测试可改为: mvn -B -DskipTests package
-        run: mvn -B -U package --file pom.xml
+        run: mvn -B -DskipTests package --file pom.xml
+
 
       - name: Collect artifact paths
         run: |
