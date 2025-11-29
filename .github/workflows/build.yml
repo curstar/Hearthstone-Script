@@ -1,0 +1,42 @@
+name: Build (Maven) with Submodules
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:   # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'   # 根据需要改为 8/11/17 等
+
+      - name: Build with Maven
+        # 若想跳过测试可改为: mvn -B -DskipTests package
+        run: mvn -B -U package --file pom.xml
+
+      - name: Collect artifact paths
+        run: |
+          echo "Looking for artifacts under **/target"
+          find . -type f -path "*/target/*" -maxdepth 6 -name "*.jar" -o -name "*.zip" || true
+
+      - name: Upload built artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-artifacts
+          path: |
+            **/target/*.jar
+            **/target/*.zip
