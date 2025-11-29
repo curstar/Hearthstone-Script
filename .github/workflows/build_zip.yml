@@ -1,4 +1,4 @@
-name: 编译并打包 Maven 项目 (Java/Kotlin)
+name: 编译并打包 Maven 项目 (Java 25)
 
 on:
   push:
@@ -10,42 +10,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. 检出代码（包含所有子仓库）
+    # 1. 检出代码
     - name: Checkout Code
       uses: actions/checkout@v4
       with:
         submodules: recursive
         fetch-depth: 0
 
-    # 2. 强制更新子仓库（这一步对你修改了 .gitmodules 很重要）
+    # 2. 强制更新子仓库
     - name: Force Update Submodules
       run: |
         git submodule sync
         git submodule update --init --recursive --remote
 
-    # 3. 设置 Java 环境 (通常现在项目用 JDK 17 比较多)
-    - name: Set up JDK 17
+    # 3. 设置 Java 25 环境 (这里改成了 25)
+    # 注意：如果 Temurin 还没发布 25 的正式版，可能需要换成 zulu，先试这个
+    - name: Set up JDK 25
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: 'maven' # 开启缓存，让第二次构建更快
+        java-version: '25'
+        distribution: 'temurin' 
+        cache: 'maven'
 
     # 4. 开始编译
-    # -B: 批处理模式
-    # package: 打包
-    # -DskipTests: 跳过测试代码 (这能避免因测试不通过导致你拿不到包)
+    # -Dmaven.test.skip=true: 跳过测试
     - name: Build with Maven
-      run: mvn -B package --file pom.xml -DskipTests
+      run: mvn -B package --file pom.xml -Dmaven.test.skip=true
 
-    # 5. 搜索并上传生成的 jar 包
-    # Maven 通常把结果放在每个模块的 target/ 文件夹下
+    # 5. 上传结果
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: Executable-Files
         path: |
           **/target/*.jar
-          **/target/*.war
           **/target/*.zip
           !**/target/original-*.jar
+          !**/target/*-sources.jar
+          !**/target/*-javadoc.jar
