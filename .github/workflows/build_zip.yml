@@ -1,0 +1,41 @@
+name: 打包完整代码 (含子仓库)
+
+# 只要你提交代码，或者手动点击运行，这个脚本就会启动
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 检出主仓库代码
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive # 关键：递归下载所有子仓库
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. 强制更新子仓库到最新版
+      # (这一步是为了解决你修改了URL但没更新指针的问题)
+      - name: Force Update Submodules
+        run: |
+          git submodule sync
+          git submodule update --init --recursive --remote
+
+      # 3. 这里是打包成 ZIP
+      # 如果你需要编译(生成exe)，我们需要在这里加编译命令。
+      # 目前先做成“完整源代码包”
+      - name: Zip Everything
+        run: |
+          # 排除 .git 文件夹以减小体积
+          zip -r full-source-code.zip . -x "*.git*"
+
+      # 4. 上传打包好的文件供你下载
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Full-Source-Code
+          path: full-source-code.zip
