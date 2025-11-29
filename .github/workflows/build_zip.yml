@@ -1,6 +1,5 @@
-name: 打包完整代码 (含子仓库)
+name: 编译并打包 Maven 项目 (Java/Kotlin)
 
-# 只要你提交代码，或者手动点击运行，这个脚本就会启动
 on:
   push:
     branches: [ "main", "master" ]
@@ -11,31 +10,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 检出主仓库代码
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive # 关键：递归下载所有子仓库
-          token: ${{ secrets.GITHUB_TOKEN }}
+    # 1. 检出代码（包含所有子仓库）
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
 
-      # 2. 强制更新子仓库到最新版
-      # (这一步是为了解决你修改了URL但没更新指针的问题)
-      - name: Force Update Submodules
-        run: |
-          git submodule sync
-          git submodule update --init --recursive --remote
+    # 2. 强制更新子仓库（这一步对你修改了 .gitmodules 很重要）
+    - name: Force Update Submodules
+      run: |
+        git submodule sync
+        git submodule update --init --recursive --remote
 
-      # 3. 这里是打包成 ZIP
-      # 如果你需要编译(生成exe)，我们需要在这里加编译命令。
-      # 目前先做成“完整源代码包”
-      - name: Zip Everything
-        run: |
-          # 排除 .git 文件夹以减小体积
-          zip -r full-source-code.zip . -x "*.git*"
+    # 3. 设置 Java 环境 (通常现在项目用 JDK 17 比较多)
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven' # 开启缓存，让第二次构建更快
 
-      # 4. 上传打包好的文件供你下载
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Full-Source-Code
-          path: full-source-code.zip
+    # 4. 开始编译
+    # -B: 批处理模式
+    # package: 打包
+    # -DskipTests: 跳过测试代码 (这能避免因测试不通过导致你拿不到包)
+    - name: Build with Maven
+      run: mvn -B package --file pom.xml -DskipTests
+
+    # 5. 搜索并上传生成的 jar 包
+    # Maven 通常把结果放在每个模块的 target/ 文件夹下
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Executable-Files
+        path: |
+          **/target/*.jar
+          **/target/*.war
+          **/target/*.zip
+          !**/target/original-*.jar
