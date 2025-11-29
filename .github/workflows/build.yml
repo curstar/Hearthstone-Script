@@ -1,43 +1,35 @@
-name: Create Release
+name: Build Java / Kotlin Project
 
 on:
   push:
-    tags:
-      - 'v*.*.*-*'
-
-permissions:
-  contents: write
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch: # 手动运行
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout source
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          submodules: true   # ⚠ 你的仓库包含大量子模块，一定要开启
 
-      - name: Determine if prerelease
-        id: prerelease
-        run: |
-          if [[ "${{ github.ref_name }}" == *"DEV" ]] || [[ "${{ github.ref_name }}" == *"BETA" ]] || [[ "${{ github.ref_name }}" == *"TEST" ]]; then
-            echo "prerelease=true" >> $GITHUB_ENV
-          else
-            echo "prerelease=false" >> $GITHUB_ENV
-          fi
-
-      - name: Get latest commit message
-        id: get_commit
-        run: |
-          msg=$(git log -1 --pretty=%B | tr '\n' ' ')
-          echo "message=$msg" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Set up JDK
+        uses: actions/setup-java@v4
         with:
-          name: hs-script_${{ github.ref_name }}
-          body: ${{ steps.get_commit.outputs.message }}
-          prerelease: ${{ env.prerelease }}
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+          distribution: 'temurin'
+          java-version: '17'   # 根据你项目要求改 8/11/17，都支持
+
+      - name: Build with Maven
+        run: mvn -B package --file pom.xml
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-artifacts
+          path: |
+            **/target/*.jar
+            **/target/*.zip
